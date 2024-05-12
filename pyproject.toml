@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "statex"
+version = "0.1.0"
+description = "python state management library supporting various UIs"
+authors = ["rados4y <rados4y@o2.pl>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyee = "^11.1.0"
+wrapt = "^1.16.0"
+
+[tool.poetry.group.test]
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.2.0"
+
+[tool.pytest.ini_options]
+addopts = "-v -s"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
