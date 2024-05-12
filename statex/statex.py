@@ -1,9 +1,11 @@
+from collections import defaultdict
 from enum import Enum
 import functools
 from typing import Any, Callable, Optional, Type, TypeVar, Union
 import types
 import wrapt  # type:ignore
-from pyee import EventEmitter
+
+# from pyee import EventEmitter
 import datetime
 import inspect
 import threading
@@ -42,7 +44,8 @@ class SxField(Observer):
         self.key = key
         self._get = fget
         self._set = fset or not_set
-        self._ee = None
+        # self._ee = None
+        self._listeners: set[Callable[[Any], None]] = set()
         self.make_dirty_sxs: set[SxField] = set()  # weakref.WeakSet[SxField]()
         self.is_dirty = False
         self.dirty_src: object | None = None
@@ -73,20 +76,30 @@ class SxField(Observer):
         self.clear()
 
     def on_change(self, callable: Callable[[Any], None]) -> Callable[[], None]:
+        """
         if self._ee is None:
             self._ee = EventEmitter()
         self._ee.on("change", callable)
         return lambda: self._ee.remove_listener("change", callable)  # type:ignore
+        """
+        self._listeners.add(callable)
+        return lambda: self._listeners.remove(callable)
 
     def del_change(self, callable: Callable[[Any], None]) -> None:
+        """
         if self._ee is None:
             return
         self._ee.remove_listener("change", callable)  # type:ignore
+        """
+        self._listeners.remove(callable)
 
     def clear(self):
         if self.is_dirty:
-            if self._ee is not None:
-                self._ee.emit("change", self.dirty_src)
+            # if self._ee is not None:
+            #    self._ee.emit("change", self.dirty_src)
+            if self._listeners:
+                for listener in self._listeners:
+                    listener(self.dirty_src)
             self.is_dirty = False
             self.dirty_src = None
 
@@ -149,7 +162,8 @@ class BaseObservable(wrapt.ObjectProxy):  # type:ignore
         super().__init__(source)  # type:ignore
         self._self_sx_factory = SxFactory(self)
         self._self_root = root or self
-        self._self_ee: EventEmitter = EventEmitter()
+        # self._self_ee: EventEmitter = EventEmitter()
+        self._self_listeners: dict[str, set[Callable[[], None]]] = defaultdict(set)
         # used on root only
         self._self_context: Any = None
         self._self_open_call: Callable[[], None] | None = None
@@ -159,18 +173,24 @@ class BaseObservable(wrapt.ObjectProxy):  # type:ignore
         if __key is None:
             __key = "."
         if isinstance(observer, Observer):
-            self._self_ee.on(__key, observer.make_dirty)
+            # self._self_ee.on(__key, observer.make_dirty)
+            self._self_listeners[__key].add(observer.make_dirty)
         else:
-            self._self_ee.on(__key, observer)
+            # self._self_ee.on(__key, observer)
+            self._self_listeners[__key].add(observer)
 
     def _make_dirty(self, __key: str | None = None):
         if __key is None:
             __key = "."
-        self._self_ee.emit(__key)
+        # self._self_ee.emit(__key)
+        for listener in self._self_listeners[__key]:
+            listener()
 
     def _change_value(self, value: Any, key: str | None = None) -> Any:
         if value is None:
             return None
+        if isinstance(value, ObjectObservable.SKIP_TYPES):
+            return value  # no proxy
         if isinstance(value, BaseObservable):
             return value
         if isinstance(value, dict):
@@ -185,8 +205,6 @@ class BaseObservable(wrapt.ObjectProxy):  # type:ignore
             if key is not None:
                 lo._on_dirty(None, lambda: self._make_dirty(key))
             return lo
-        if isinstance(value, ObjectObservable.SKIP_TYPES):
-            return value  # no proxy
         return ObjectObservable(value, root=self)
 
 

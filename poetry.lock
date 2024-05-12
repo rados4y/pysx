@@ -63,23 +63,6 @@ dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
-name = "pyee"
-version = "11.1.0"
-description = "A rough port of Node.js's EventEmitter to Python with a few tricks of its own"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "pyee-11.1.0-py3-none-any.whl", hash = "sha256:5d346a7d0f861a4b2e6c47960295bd895f816725b27d656181947346be98d7c1"},
-    {file = "pyee-11.1.0.tar.gz", hash = "sha256:b53af98f6990c810edd9b56b87791021a8f54fd13db4edd1142438d44ba2263f"},
-]
-
-[package.dependencies]
-typing-extensions = "*"
-
-[package.extras]
-dev = ["black", "build", "flake8", "flake8-black", "isort", "jupyter-console", "mkdocs", "mkdocs-include-markdown-plugin", "mkdocstrings[python]", "pytest", "pytest-asyncio", "pytest-trio", "sphinx", "toml", "tox", "trio", "trio", "trio-typing", "twine", "twisted", "validate-pyproject[all]"]
-
-[[package]]
 name = "pytest"
 version = "8.2.0"
 description = "pytest: simple powerful testing with Python"
@@ -110,17 +93,6 @@ python-versions = ">=3.7"
 files = [
     {file = "tomli-2.0.1-py3-none-any.whl", hash = "sha256:939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc"},
     {file = "tomli-2.0.1.tar.gz", hash = "sha256:de526c12914f0c550d15924c62d72abc48d6fe7364aa87328337a31007fe8a4f"},
-]
-
-[[package]]
-name = "typing-extensions"
-version = "4.11.0"
-description = "Backported and Experimental Type Hints for Python 3.8+"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "typing_extensions-4.11.0-py3-none-any.whl", hash = "sha256:c1f94d72897edaf4ce775bb7558d5b79d8126906a14ea5ed1635921406c0387a"},
-    {file = "typing_extensions-4.11.0.tar.gz", hash = "sha256:83f085bd5ca59c80295fc2a82ab5dac679cbe02b9f33f7d83af68e241bea51b0"},
 ]
 
 [[package]]
@@ -205,4 +177,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "73929a26503ebbf39dcf94c3aef302b86a40cdc555e9441652871047b7037bfd"
+content-hash = "7f1678ee35e1f110ba77828735ef5b946a3f75b62722ff144dff4ab0c4aed09e"
