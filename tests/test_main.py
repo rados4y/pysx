@@ -108,6 +108,7 @@ def test_calc_with_arg():
     trk.assert_set("count_with_5", 6)
     trk.assert_set("count_with_7", 8)
     st.li.append(2)
+    trk.clear()
     st.li.append(3)
     trk.assert_set("count_with_5", 8)
     trk.assert_set("count_with_7", 10)
