@@ -399,10 +399,11 @@ class SxFactory:
                 for dep in deps:
                     sf.add_dependency(self.factory_(dep))
             else:
+                wrapped: Any = self._source.__wrapped__  # type:ignore
                 sf = SxField(
                     key=__key,
-                    fget=lambda: getattr(self._source.__wrapped__, __key),
-                    fset=lambda v: setattr(self._source.__wrapped__, __key, v),
+                    fget=lambda: getattr(wrapped, __key),
+                    fset=lambda v: setattr(wrapped, __key, v),
                     annotation=self._type_hints.get(__key),
                 )
                 # self._source._on_dirty(__key, sf)  # type:ignore
