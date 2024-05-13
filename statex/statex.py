@@ -59,8 +59,12 @@ class SxField(Observer):
     def get(self) -> Any:
         return self._get()
 
-    def set(self, value: Any) -> None:
+    def set(
+        self, value: Any, source: object | None = None, is_ditry: bool = True
+    ) -> None:
         self._set(value)
+        if is_ditry:
+            self.make_dirty(source)
 
     def add_dependency(self, sx: "SxField") -> None:
         # if dependency is dirty, make this sx dirty
@@ -169,7 +173,13 @@ class BaseObservable(wrapt.ObjectProxy):  # type:ignore
         self._self_open_call: Callable[[], None] | None = None
         self._self_close_call: Callable[[], None] | None = None
 
-    def _on_dirty(self, __key: str | None, observer: Observer | Callable[[], None]):
+    def _get_sx(self, __key: str) -> SxField | None:
+        return self._self_sx_factory.get_(__key)
+
+    def _factory_sx(self, __key: str) -> SxField:
+        return self._self_sx_factory.factory_(__key)
+
+    def _OFF_on_dirty(self, __key: str | None, observer: Observer | Callable[[], None]):
         if __key is None:
             __key = "."
         if isinstance(observer, Observer):
@@ -179,7 +189,7 @@ class BaseObservable(wrapt.ObjectProxy):  # type:ignore
             # self._self_ee.on(__key, observer)
             self._self_listeners[__key].add(observer)
 
-    def _make_dirty(self, __key: str | None = None):
+    def _OFF_make_dirty(self, __key: str | None = None):
         if __key is None:
             __key = "."
         # self._self_ee.emit(__key)
@@ -194,16 +204,20 @@ class BaseObservable(wrapt.ObjectProxy):  # type:ignore
         if isinstance(value, BaseObservable):
             return value
         if isinstance(value, dict):
-            do = DictObservable(value, root=self)  # type:ignore
+            assert key is not None
+            do = DictObservable(value, parent=self, parent_key=key)
             # if dictionary changes, its base object field must be dirty
-            if key is not None:
-                do._on_dirty(None, lambda: self._make_dirty(key))
+            # if key is not None:
+            #    do._factory_sx().add_dependency(self._factory_sx(key))
+            # do._on_dirty(None, lambda: self._make_dirty(key))
             return do
         if isinstance(value, list):
-            lo = ListObservable(value, root=self)  # type:ignore
+            assert key is not None
+            lo = ListObservable(value, parent=self, parent_key=key)
             # if list changes, its base object field must be dirty
-            if key is not None:
-                lo._on_dirty(None, lambda: self._make_dirty(key))
+            # if key is not None:
+            #    lo._factory_sx().add_dependency(self._factory_sx(key))
+            # lo._on_dirty(None, lambda: self._make_dirty(key))
             return lo
         return ObjectObservable(value, root=self)
 
@@ -288,16 +302,25 @@ class ObjectObservable(BaseObservable):
         if name.startswith("_"):
             return super().__setattr__(name, value)  # type:ignore
         value = self._change_value(value, name)
-        setattr(self.__wrapped__, name, value)  # type:ignore
-        self._make_dirty(name)
+        if sx := self._get_sx(name):
+            sx.set(value)
+        else:
+            setattr(self.__wrapped__, name, value)  # type:ignore
+            # self._make_dirty(name)
 
 
 class DictObservable(BaseObservable):
-    def __init__(self, source: Any, root: Optional["BaseObservable"] = None):
-        super().__init__(source, root)  # type:ignore
+    def __init__(self, source: Any, parent: "BaseObservable", parent_key: str):
+        super().__init__(source, parent._self_root)  # type:ignore
+        self._self_parent = parent
+        self._self_parent_key = parent_key
         for key, value in source.items():
             value = self._change_value(value)  # type:ignore
             source[key] = value
+
+    def _make_dirty(self):
+        if sx := self._self_parent._get_sx(self._self_parent_key):
+            sx.make_dirty()
 
     def __setitem__(self, __key: str, value: Any):
         value = self._change_value(value)
@@ -306,11 +329,17 @@ class DictObservable(BaseObservable):
 
 
 class ListObservable(BaseObservable):
-    def __init__(self, source: Any, root: Optional["BaseObservable"] = None):
-        super().__init__(source, root)  # type:ignore
+    def __init__(self, source: Any, parent: "BaseObservable", parent_key: str):
+        super().__init__(source, parent._self_root)  # type:ignore
+        self._self_parent = parent
+        self._self_parent_key = parent_key
         for id, value in enumerate(source):
             value = self._change_value(value)  # type:ignore
             source[id] = value
+
+    def _make_dirty(self):
+        if sx := self._self_parent._get_sx(self._self_parent_key):
+            sx.make_dirty()
 
     def __setitem__(self, index: int, value: Any):
         value = self._change_value(value)
@@ -342,12 +371,17 @@ class SxFactory:
         self._type_hints = getattr(
             type(source.__wrapped__), "__annotations__", {}  # type:ignore
         )
-        self._sxs: dict[str, SxField] = {}
+        self._sxs: dict[str | None, SxField] = (
+            {}
+        )  # None as key represents root object in dict/list
 
     def __getattr__(self, __key: str) -> SxField:
-        return self.get(__key)
+        return self.factory_(__key)
 
-    def get(self, __key: str) -> SxField:
+    def get_(self, __key: str) -> SxField | None:
+        return self._sxs.get(__key)
+
+    def factory_(self, __key: str) -> SxField:
         if __key not in self._sxs:
             value = getattr(self._source, __key)
             if callable(value):
@@ -363,15 +397,15 @@ class SxFactory:
                 if isinstance(deps, str):
                     deps = [deps]
                 for dep in deps:
-                    sf.add_dependency(self.get(dep))
+                    sf.add_dependency(self.factory_(dep))
             else:
                 sf = SxField(
                     key=__key,
-                    fget=lambda: getattr(self._source, __key),
-                    fset=lambda v: setattr(self._source, __key, v),
+                    fget=lambda: getattr(self._source.__wrapped__, __key),
+                    fset=lambda v: setattr(self._source.__wrapped__, __key, v),
                     annotation=self._type_hints.get(__key),
                 )
-                self._source._on_dirty(__key, sf)  # type:ignore
+                # self._source._on_dirty(__key, sf)  # type:ignore
             self._sxs[__key] = sf
         return self._sxs[__key]
 
@@ -418,11 +452,6 @@ def use_sx(
         annotation=annotation or type(value),
     )
     return sx
-
-
-def set_sx(sx: SxField, value: Any, src: object | None = None):
-    sx.set(value)
-    sx.make_dirty(src)
 
 
 S = TypeVar("S")

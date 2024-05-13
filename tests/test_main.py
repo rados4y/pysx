@@ -1,5 +1,4 @@
 from statex import def_sx, sx, use_state
-from statex.statex import set_sx
 from tests.helpers import ChangeTracker
 import typing as t
 
@@ -125,7 +124,7 @@ def test_source():
     trk.track("f1", sx(st).f1)
 
     # st.f1 = "val2"
-    set_sx(sx(st).f1, "val2", src=source)
+    sx(st).f1.set("val2", source=source)
 
     trk.assert_set("f1", "val2", source=source)
 
@@ -170,6 +169,8 @@ def test_performance():
 
         for i in range(loops):
             st.f1 = i
+
+    f_with, f_without  # type:ignore
 
     elapsed_time = timeit.timeit("f_with()", globals=locals(), number=1)
     print(f"Executed with state, counter:{counter} time:{elapsed_time:.5f} seconds")

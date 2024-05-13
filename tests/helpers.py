@@ -9,6 +9,10 @@ class ChangeTracker:
 
     def track(self, key: t.Any, sx: SxField):
         def on_change(source: t.Any):
+            if key in self.tracked_value:
+                raise ValueError(
+                    f"key {key} has already been changed without assertion, multiple calls on single changes?"
+                )
             self.tracked_value[key] = sx.get()
             self.tracked_src[key] = source
 
