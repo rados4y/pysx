@@ -12,19 +12,23 @@ import threading
 
 
 class Observer:
+    """interface for observer pattern"""
+
     def make_dirty(self): ...
 
 
 def not_set(_: Any):
+    """dummy set method for read only fields"""
     raise NotImplementedError("no set method")
 
 
 class SxManager:
-    """dictates clearing dirty sxs"""
+    """manager that dictates clearing dirty sxs"""
 
     ...
 
     def add_dirty(self, sx: "SxField"):
+        """add dirty sx to be cleared"""
         sx.clear()
 
 
@@ -32,6 +36,8 @@ global_sx_manager = SxManager()
 
 
 class SxField(Observer):
+    """Stateful field"""
+
     def __init__(
         self,
         key: str | None,
@@ -57,20 +63,23 @@ class SxField(Observer):
                 self.add_dependency(dep)
 
     def get(self) -> Any:
+        """get value of field"""
         return self._get()
 
     def set(
         self, value: Any, source: object | None = None, is_ditry: bool = True
     ) -> None:
+        """set value of field"""
         self._set(value)
         if is_ditry:
             self.make_dirty(source)
 
     def add_dependency(self, sx: "SxField") -> None:
-        # if dependency is dirty, make this sx dirty
+        """add dependency to this sx, if dependency is dirty, make this sx dirty"""
         sx.make_dirty_sxs.add(self)
 
     def make_dirty(self, src: object | None = None):
+        """mark this sx as dirty, and propagate to dependent sxs"""
         self.is_dirty = True
         self.dirty_src = src
         for sx in self.make_dirty_sxs:
@@ -80,27 +89,17 @@ class SxField(Observer):
         self.clear()
 
     def on_change(self, callable: Callable[[Any], None]) -> Callable[[], None]:
-        """
-        if self._ee is None:
-            self._ee = EventEmitter()
-        self._ee.on("change", callable)
-        return lambda: self._ee.remove_listener("change", callable)  # type:ignore
-        """
+        """add listener to sx field, listener will get source of change when sx is dirty, return unsubscriber"""
         self._listeners.add(callable)
         return lambda: self._listeners.remove(callable)
 
     def del_change(self, callable: Callable[[Any], None]) -> None:
-        """
-        if self._ee is None:
-            return
-        self._ee.remove_listener("change", callable)  # type:ignore
-        """
+        """remove listener from sx field"""
         self._listeners.remove(callable)
 
     def clear(self):
+        """clear dirty state"""
         if self.is_dirty:
-            # if self._ee is not None:
-            #    self._ee.emit("change", self.dirty_src)
             if self._listeners:
                 for listener in self._listeners:
                     listener(self.dirty_src)
@@ -109,13 +108,16 @@ class SxField(Observer):
 
     @property
     def value(self) -> Any:
+        """get value of field, simplified as property"""
         return self.get()
 
     @value.setter
     def value(self, value: Any) -> None:
+        """set value of field, simplified as property"""
         self.set(value)
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
+        """call field with arguments, return new sx field with arguments as dependencies"""
         fget = functools.partial(self._get, *args, **kwds)
         fset = (
             functools.partial(self._set, *args, **kwds)
@@ -131,6 +133,8 @@ class SxField(Observer):
         return sx
 
     def map(self, func: Callable[[Any, int], Any]) -> "SxField":
+        """returns new sx as map of this sx, with func applied to each element of this sx value"""
+
         def fget():
             return [func(v, i) for i, v in enumerate(self.get())]
 
@@ -142,6 +146,7 @@ class SxField(Observer):
         return sx
 
     def do(self, func: Callable[[Any], Any]) -> "SxField":
+        """returns new sx as result of func applied to this sx value"""
         sx = SxField(
             key=f"{str(self.key)}.call({str(func)})",
             fget=lambda: func(self.get()),
@@ -150,6 +155,7 @@ class SxField(Observer):
         return sx
 
     def eq(self, value: Any) -> "SxField":
+        """returns new sx as result of comparison of this sx value with value"""
         sx = SxField(
             key=f"{str(self.key)}.eq({str(value)})",
             fget=lambda: self.get() == value,

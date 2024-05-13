@@ -5,6 +5,13 @@ description = "python state management library supporting various UIs"
 authors = ["rados4y <rados4y@o2.pl>"]
 license = "MIT"
 readme = "README.md"
+classifiers = [
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License"
+]
 
 [tool.poetry.dependencies]
 python = "^3.10"
