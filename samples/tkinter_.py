@@ -35,7 +35,7 @@ def bind(control: tk.Entry | tk.Label, sx: SxField):
 
 
 class SimpleApp:
-    def __init__(self, root):
+    def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Simple Tkinter App")  # type: ignore
         self.state = use_state(State)
