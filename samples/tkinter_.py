@@ -18,16 +18,20 @@ def bind(control: tk.Entry | tk.Label, sx: SxField):
         control.config(text=sx.get())
 
         def on_change(source: Any):
+            if source is control:
+                return
             control.config(text=sx.get())
 
         sx.on_change(on_change)
 
         return
 
-    control.bind("<KeyRelease>", lambda _: sx.set(control.get()))
+    control.bind("<KeyRelease>", lambda _: sx.set(control.get(), control))
     control.insert(0, sx.get())
 
     def on_change(source: Any):
+        if source is control:
+            return
         control.delete(0, tk.END)
         control.insert(0, sx.get())
 
